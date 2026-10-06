@@ -1,0 +1,151 @@
+configfile: "config/config.yaml"
+
+
+SAMPLE = config["sample"]
+READS = config["reads"]
+ASSEMBLIES = list(config["assemblies"].keys())
+WORKDIR = config["workdir"].rstrip("/")
+
+PARTITION = config["partition"]
+
+localrules: all, mapping_qc
+
+def output_path(relative_path):
+    if WORKDIR in ("", "."):
+        return relative_path
+    return f"{WORKDIR}/{relative_path}"
+
+
+ALIGNMENT_DIR = output_path("alignments")
+MAPPING_DIR = output_path("results/mapping")
+
+BAM_PATTERN = (
+    f"{ALIGNMENT_DIR}/{SAMPLE}.{{assembly}}.hifi.sorted.bam"
+)
+
+BAI_PATTERN = BAM_PATTERN + ".bai"
+
+FLAGSTAT_PATTERN = (
+    f"{MAPPING_DIR}/{{assembly}}.flagstat.txt"
+)
+
+COVERAGE_PATTERN = (
+    f"{MAPPING_DIR}/{{assembly}}.coverage.tsv"
+)
+
+IDXSTATS_PATTERN = (
+    f"{MAPPING_DIR}/{{assembly}}.idxstats.tsv"
+)
+
+SUMMARY_PATTERN = (
+    f"{MAPPING_DIR}/{{assembly}}.mapping_summary.tsv"
+)
+
+FLAGGED_PATTERN = (
+    f"{MAPPING_DIR}/{{assembly}}.flagged_contigs.tsv"
+)
+
+FIGURE_PATTERN = (
+    f"{MAPPING_DIR}/{{assembly}}.mapping_qc.png"
+)
+
+
+rule all:
+    input:
+        expand(SUMMARY_PATTERN, assembly=ASSEMBLIES),
+        expand(FLAGGED_PATTERN, assembly=ASSEMBLIES),
+        expand(FIGURE_PATTERN, assembly=ASSEMBLIES)
+
+
+rule map_hifi:
+    input:
+        reads=READS,
+        reference=lambda wildcards: config["assemblies"][
+            wildcards.assembly
+        ]
+
+    output:
+        bam=BAM_PATTERN,
+        bai=BAI_PATTERN,
+        flagstat=FLAGSTAT_PATTERN
+
+    threads: 16
+
+    resources:
+        partition=PARTITION,
+        runtime=1440
+
+    params:
+        minimap2_threads=10,
+        sort_threads=5,
+        temp_prefix=(
+            f"{ALIGNMENT_DIR}/tmp/"
+            f"{SAMPLE}.{{assembly}}_sort"
+        )
+
+    shell:
+        """
+        mkdir -p "{ALIGNMENT_DIR}/tmp" "{MAPPING_DIR}"
+
+        minimap2 \
+            -ax map-hifi \
+            -t {params.minimap2_threads} \
+            "{input.reference}" \
+            "{input.reads}" |
+        samtools sort \
+            -@ {params.sort_threads} \
+            -m 2G \
+            -T "{params.temp_prefix}" \
+            -o "{output.bam}" \
+            -
+
+        samtools index -@ 10 "{output.bam}"
+
+        samtools flagstat -@ 10 "{output.bam}" \
+            > "{output.flagstat}"
+        """
+
+
+rule coverage:
+    input:
+        bam=BAM_PATTERN,
+        bai=BAI_PATTERN
+
+    output:
+        coverage=COVERAGE_PATTERN,
+        idxstats=IDXSTATS_PATTERN
+
+    threads: 1
+
+    resources:
+        partition=PARTITION,
+        runtime=240
+
+    shell:
+        """
+        samtools idxstats "{input.bam}" \
+            > "{output.idxstats}"
+
+        samtools coverage "{input.bam}" \
+            -o "{output.coverage}"
+        """
+
+
+rule mapping_qc:
+    input:
+        coverage=COVERAGE_PATTERN,
+        script="scripts/summarize_mapping_qc.py"
+
+    output:
+        summary=SUMMARY_PATTERN,
+        flagged=FLAGGED_PATTERN,
+        figure=FIGURE_PATTERN
+
+    shell:
+        """
+        python3 "{input.script}" \
+            --coverage "{input.coverage}" \
+            --summary "{output.summary}" \
+            --flagged "{output.flagged}" \
+            --figure "{output.figure}"
+        """

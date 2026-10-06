@@ -33,3 +33,6 @@ __pycache__/
 
 # Operating-system files
 .DS_Store
+
+# Local machine/server-specific configuration
+config/config.yaml

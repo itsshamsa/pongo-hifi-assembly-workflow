@@ -1,0 +1,14 @@
+metric	value
+contigs	1179.0
+total_bp	3269425710.0
+covered_bp	3269325722.0
+genome_breadth_percent	99.99694172589106
+weighted_mean_depth	16.8369834682831
+median_contig_depth	14.437
+contigs_coverage_below_99_percent	18.0
+low_depth_contigs	216.0
+high_depth_contigs	27.0
+contigs_depth_above_50x	21.0
+flagged_contigs	253.0
+flagged_bp	16921807.0
+flagged_bp_percent	0.5175773515281985

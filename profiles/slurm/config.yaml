@@ -1,0 +1,16 @@
+jobs: 10
+latency-wait: 60
+rerun-incomplete: true
+printshellcmds: true
+
+cluster: >-
+  sbatch
+  --parsable
+  --partition={resources.partition}
+  --nodes=1
+  --ntasks=1
+  --cpus-per-task={threads}
+  --time={resources.runtime}
+  --job-name=smk-{rule}
+  --output=logs/snakemake/{rule}-%j.out
+  --error=logs/snakemake/{rule}-%j.err

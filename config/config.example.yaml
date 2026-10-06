@@ -1,0 +1,10 @@
+partition: "your_partition"
+
+sample: "pongo_denovo"
+
+reads: "data/full.fastq.gz"
+
+assemblies:
+  primary: "assembly_fasta/pongo_denovo.primary.fa"
+
+workdir: "."
