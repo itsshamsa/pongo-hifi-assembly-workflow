@@ -1,0 +1,17 @@
+Project: Pongo abelii PacBio HiFi de novo assembly workflow
+Date of analysis: October 2026
+
+Workflow and HPC
+- hifiasm: 0.25.0-r726
+- Slurm: 24.11.5
+
+Assembly quality control
+- SeqKit: 2.9.0
+- BUSCO: 5.5.0
+- BUSCO lineage: primates_odb10
+
+Python environment
+- Python: 3.13.5
+- NumPy: 2.2.4
+- Pandas: 2.2.3
+- Matplotlib: 3.10.1+dfsg1

@@ -1,0 +1,35 @@
+# Raw sequencing reads
+*.fastq
+*.fastq.gz
+*.fq
+*.fq.gz
+
+# Genome assemblies and assembly graphs
+*.fa
+*.fasta
+*.fna
+*.gfa
+*.bin
+assembly_fasta/
+
+# Read alignments
+*.sam
+*.bam
+*.bai
+*.cram
+*.crai
+
+# Large BUSCO data and intermediate results
+busco_downloads/
+results/busco/
+
+# Slurm runtime logs
+logs/
+
+# Workflow and Python temporary files
+.snakemake/
+__pycache__/
+*.pyc
+
+# Operating-system files
+.DS_Store
