@@ -37,6 +37,12 @@ The analysis generated a primary assembly and two partially phased haplotype out
 
 The primary assembly is a haploid-style mosaic representation derived from a diploid individual. Hap1 and hap2 attempt to represent the two genomic copies separately, but they cannot be assigned as maternal and paternal because parental or other long-range phasing data were not provided.
 
+### Terminology note
+
+The term **primary** is context-dependent. In this hifiasm workflow, `pongo_denovo.bp.p_ctg` is the main haploid-style mosaic assembly and may switch between the two inherited chromosome copies. The `hap1` and `hap2` outputs are partially phased representations produced from HiFi reads alone.
+
+By contrast, the published NCBI *P. abelii* assembly used for subsequent comparison provides separate primary and alternate assemblies representing two phased haplotypes. Therefore, our mosaic primary assembly is not directly equivalent to the published primary haplotype. Haplotype-level comparisons will use our hap1 and hap2 outputs against both published haplotypes without assuming a correspondence in advance.
+
 ## Assembly statistics
 
 | Assembly | Contigs | Total length (bp) | Longest contig (bp) | N50 (bp) | L50 | GC (%) |
