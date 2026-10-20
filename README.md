@@ -23,10 +23,10 @@ Completed:
 - Configurable read-length filtering with SeqKit
 - Independent reproduction of the workflow on the larger AG06213 dataset
 - Highly contiguous primary and haplotype-resolved AG06213 assemblies
+- Whole-genome comparison of the Susie assemblies against published NCBI primary and alternate haplotypes
 
 Planned:
 
-- Comparison with a published *P. abelii* assembly
 - IG/TR locus-focused evaluation
 - Extension of the workflow to hap1 and hap2 mapping/QC where biologically useful
 - Further workflow portability and reproducibility improvements
@@ -251,3 +251,27 @@ BUSCO 5.5.0 was run in genome mode using `primates_odb10`.
 ![AG06213 BUSCO comparison](results/ag06213/busco/ag06213.busco_comparison.png)
 
 The AG06213 assemblies are considerably more contiguous than the first test assembly while maintaining high conserved-gene completeness. These genome-wide statistics do not independently demonstrate structural correctness, phasing accuracy or correct resolution of complex IG/TR loci; read-supported and locus-level validation remain necessary.
+
+
+## Susie assembly comparison with published NCBI haplotypes
+
+The newly generated Susie assemblies were compared with the published haplotype-resolved Susie assemblies:
+
+- `GCA_030170355.1`: Susie_PAB_hifiasm-v0.15.2.pri
+- `GCA_030170345.1`: Susie_PAB_hifiasm-v0.15.2.alt
+
+Whole-genome assembly alignments were produced with minimap2 using the `asm5` preset. Secondary alignments were suppressed for the initial haplotype comparison. Summary statistics retained alignment blocks of at least 10 kb with mapping quality of at least 5.
+
+| Our assembly | Best-supported NCBI match | Our assembly aligned (%) | NCBI reference covered (%) | Estimated identity (%) |
+|---|---|---:|---:|---:|
+| Hap1 | NCBI primary | 98.52 | 94.58 | 99.9368 |
+| Hap2 | NCBI alternate | 97.85 | 94.12 | 99.9408 |
+| Primary | NCBI primary | 98.71 | 97.62 | 99.9307 |
+
+The results support correspondence between our hap1 and the published primary haplotype, and between our hap2 and the published alternate haplotype. The labels represent the best-supported assembly correspondence rather than independently established parental haplotypes.
+
+Our assemblies show high sequence agreement with the published Susie assemblies but substantially lower contiguity. This indicates that fragmentation is the major genome-wide limitation of the new assembly, rather than broad sequence disagreement.
+
+![Susie assembly comparison](results/susie_comparison/susie_assembly_comparison.png)
+
+The identity values are minimap2 divergence-based estimates, not exact variant calls. High genome-wide alignment breadth and identity do not independently demonstrate correct ordering, phasing or resolution of complex repetitive IG/TR loci.

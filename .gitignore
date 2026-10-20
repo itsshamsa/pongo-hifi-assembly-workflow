@@ -37,3 +37,12 @@ __pycache__/
 # Local machine/server-specific configuration
 config/config.yaml
 config/*.local.yaml
+
+# Whole-genome assembly comparison inputs and intermediates
+reference_assemblies/
+*.fai
+*.mmi
+*.paf
+*.delta
+*.ntref
+*.mgaps

@@ -1,0 +1,7 @@
+comparison	our_haplotype	ncbi_haplotype	alignment_blocks	aligned_query_bp	query_coverage_percent	aligned_reference_bp	reference_coverage_percent	estimated_identity_percent
+our_hap1_vs_ncbi_primary	hap1	primary	4315	3087443152	98.5178	3018072845	94.5754	99.9368
+our_hap1_vs_ncbi_alternate	hap1	alternate	4543	3072687915	98.047	3000219912	94.5676	99.9309
+our_hap2_vs_ncbi_primary	hap2	primary	4258	3048229696	98.5134	2993574455	93.8077	99.9366
+our_hap2_vs_ncbi_alternate	hap2	alternate	4002	3027634701	97.8478	2986100238	94.1226	99.9408
+our_primary_vs_ncbi_primary	primary	primary	2076	3227235109	98.7095	3115379108	97.6247	99.9307
+our_primary_vs_ncbi_alternate	primary	alternate	2100	3202618335	97.9566	3088113090	97.338	99.9259
