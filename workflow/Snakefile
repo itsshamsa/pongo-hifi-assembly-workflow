@@ -8,7 +8,10 @@ WORKDIR = config["workdir"].rstrip("/")
 
 PARTITION = config["partition"]
 
-localrules: all, mapping_qc
+BUSCO_LINEAGE = config["busco_lineage"]
+BUSCO_DOWNLOAD_PATH = config["busco_download_path"]
+
+localrules: all, mapping_qc, busco_summary, busco_plot
 
 def output_path(relative_path):
     if WORKDIR in ("", "."):
@@ -18,6 +21,70 @@ def output_path(relative_path):
 
 ALIGNMENT_DIR = output_path("alignments")
 MAPPING_DIR = output_path("results/mapping")
+
+READ_QC_DIR = output_path("results/read_qc")
+READ_STATS = f"{READ_QC_DIR}/{SAMPLE}.seqkit_stats.tsv"
+
+READ_QC_SUMMARY = f"{READ_QC_DIR}/{SAMPLE}.read_qc_summary.tsv"
+READ_QC_FIGURE = f"{READ_QC_DIR}/{SAMPLE}.read_qc.png"
+
+GENOME_SIZE = config.get("genome_size", 3269425710)
+
+MIN_READ_LENGTH = config.get("min_read_length", 15000)
+
+FILTERED_READS = output_path(
+    f"reads/{SAMPLE}.min{MIN_READ_LENGTH}.fastq.gz"
+)
+
+FILTERED_STATS = (
+    f"{READ_QC_DIR}/{SAMPLE}.min{MIN_READ_LENGTH}.seqkit_stats.tsv"
+)
+
+ASSEMBLY_GFA_DIR = output_path("assembly_gfa")
+ASSEMBLY_FASTA_DIR = output_path("assembly_fasta")
+
+BUSCO_DIR = output_path("results/busco")
+
+BUSCO_OUTPUT_PATTERN = (
+    f"{BUSCO_DIR}/{SAMPLE}.{{assembly}}_{BUSCO_LINEAGE}_busco"
+)
+
+BUSCO_ASSEMBLIES = ["primary", "hap1", "hap2"]
+
+BUSCO_JSON_PATTERN = (
+    f"{BUSCO_OUTPUT_PATTERN}/"
+    f"run_{BUSCO_LINEAGE}/short_summary.json"
+)
+
+BUSCO_SUMMARY = (
+    f"{BUSCO_DIR}/{SAMPLE}.busco_summary.tsv"
+)
+
+BUSCO_FIGURE = (
+    f"{BUSCO_DIR}/{SAMPLE}.busco_comparison.png"
+)
+
+HIFIASM_PREFIX = f"{ASSEMBLY_GFA_DIR}/{SAMPLE}"
+
+GFA_FILES = {
+    "primary": f"{HIFIASM_PREFIX}.bp.p_ctg.gfa",
+    "hap1": f"{HIFIASM_PREFIX}.bp.hap1.p_ctg.gfa",
+    "hap2": f"{HIFIASM_PREFIX}.bp.hap2.p_ctg.gfa",
+}
+
+FASTA_PATTERN = (
+    f"{ASSEMBLY_FASTA_DIR}/{SAMPLE}.{{assembly}}.fa"
+)
+
+ASSEMBLY_FASTAS = expand(
+    FASTA_PATTERN,
+    assembly=["primary", "hap1", "hap2"]
+
+)
+
+ASSEMBLY_SUMMARY = output_path(
+    f"results/assembly_qc/{SAMPLE}.assembly_summary.tsv"
+)
 
 BAM_PATTERN = (
     f"{ALIGNMENT_DIR}/{SAMPLE}.{{assembly}}.hifi.sorted.bam"
@@ -52,10 +119,270 @@ FIGURE_PATTERN = (
 
 rule all:
     input:
+        ASSEMBLY_FASTAS,
+        ASSEMBLY_SUMMARY,
+        BUSCO_SUMMARY,
+        BUSCO_FIGURE,
         expand(SUMMARY_PATTERN, assembly=ASSEMBLIES),
         expand(FLAGGED_PATTERN, assembly=ASSEMBLIES),
         expand(FIGURE_PATTERN, assembly=ASSEMBLIES)
 
+rule read_qc_plot:
+    input:
+        reads=READS,
+        script="scripts/plot_read_qc.py"
+
+
+    output:
+        summary=READ_QC_SUMMARY,
+        figure=READ_QC_FIGURE
+
+    log:
+        output_path("logs/read_qc_plot.log")
+
+    threads: 4
+
+    resources:
+        partition=PARTITION,
+        runtime=720
+
+    params:
+        genome_size=GENOME_SIZE
+
+    shell:
+        """
+        mkdir -p "{READ_QC_DIR}" "{WORKDIR}/logs"
+
+        seqkit fx2tab \
+            -n \
+            -i \
+            -l \
+            -q \
+            -g \
+            -j {threads} \
+            "{input.reads}" \
+            2> "{log}" |
+        python3 "{input.script}" \
+            --genome-size {params.genome_size} \
+            --summary "{output.summary}" \
+            --figure "{output.figure}" \
+            2>> "{log}"
+        """
+rule read_stats:
+    input:
+        reads=READS
+
+    output:
+        stats=READ_STATS
+
+    log:
+        output_path("logs/read_stats.log")
+
+    threads: 4
+
+    resources:
+        partition=PARTITION,
+        runtime=720
+
+    shell:
+        """
+        mkdir -p "{READ_QC_DIR}" "{WORKDIR}/logs"
+
+        seqkit stats \
+            -a \
+            -T \
+            -j {threads} \
+            "{input.reads}" \
+            > "{output.stats}" \
+            2> "{log}"
+        """
+
+rule hifiasm:
+    input:
+        reads=FILTERED_READS,
+        stats=FILTERED_STATS
+
+    output:
+        primary=GFA_FILES["primary"],
+        hap1=GFA_FILES["hap1"],
+        hap2=GFA_FILES["hap2"]
+
+    log:
+        output_path("logs/hifiasm.log")
+
+    threads: 20
+
+    resources:
+        partition=PARTITION,
+        runtime=2880
+
+    shell:
+        """
+        mkdir -p "{ASSEMBLY_GFA_DIR}" "{WORKDIR}/logs"
+
+        hifiasm \
+            -o "{HIFIASM_PREFIX}" \
+            -t {threads} \
+            "{input.reads}" \
+            2> "{log}"
+        """
+
+
+rule gfa_to_fasta:
+    input:
+        gfa=lambda wildcards: GFA_FILES[wildcards.assembly]
+
+    output:
+        fasta=FASTA_PATTERN
+
+    threads: 1
+
+    resources:
+        partition=PARTITION,
+        runtime=240
+
+    wildcard_constraints:
+        assembly="primary|hap1|hap2"
+
+    shell:
+        """
+        mkdir -p "{ASSEMBLY_FASTA_DIR}"
+
+        awk '$1 == "S" {{print ">"$2; print $3}}' \
+            "{input.gfa}" \
+            > "{output.fasta}"
+        """
+
+rule assembly_qc:
+    input:
+        primary=f"{ASSEMBLY_FASTA_DIR}/{SAMPLE}.primary.fa",
+        hap1=f"{ASSEMBLY_FASTA_DIR}/{SAMPLE}.hap1.fa",
+        hap2=f"{ASSEMBLY_FASTA_DIR}/{SAMPLE}.hap2.fa",
+        script="scripts/assembly_qc.py"
+
+    output:
+        summary=ASSEMBLY_SUMMARY
+
+    log:
+        output_path(f"logs/{SAMPLE}.assembly_qc.log")
+
+    threads: 1
+
+    resources:
+        partition=PARTITION,
+        runtime=120
+
+    params:
+        output_dir=output_path("results/assembly_qc"),
+        log_dir=output_path("logs")
+
+    shell:
+        """
+        mkdir -p "{params.output_dir}" "{params.log_dir}"
+
+        python3 "{input.script}" \
+            --primary "{input.primary}" \
+            --hap1 "{input.hap1}" \
+            --hap2 "{input.hap2}" \
+            --output "{output.summary}" \
+            > "{log}" 2>&1
+        """
+
+rule busco:
+    input:
+        assembly=FASTA_PATTERN
+    output:
+        json=BUSCO_JSON_PATTERN
+
+    log:
+        output_path(
+            f"logs/busco/{SAMPLE}.{{assembly}}.busco.log"
+        )
+
+    threads: 10
+
+    resources:
+        partition=PARTITION,
+        runtime=720,
+        mem_mb=32000
+
+    params:
+        lineage=BUSCO_LINEAGE,
+        download_path=BUSCO_DOWNLOAD_PATH,
+        out_path=BUSCO_DIR,
+        output_name=(
+            f"{SAMPLE}.{{assembly}}_"
+            f"{BUSCO_LINEAGE}_busco"
+        )
+
+    shell:
+        """
+        mkdir -p "{params.out_path}" "$(dirname "{log}")"
+
+        busco \
+            -i "{input.assembly}" \
+            -o "{params.output_name}" \
+            -m genome \
+            -l "{params.lineage}" \
+            -c {threads} \
+            --out_path "{params.out_path}" \
+            --download_path "{params.download_path}" \
+            --force \
+            > "{log}" 2>&1
+        """
+
+rule busco_summary:
+    input:
+        primary=BUSCO_JSON_PATTERN.format(assembly="primary"),
+        hap1=BUSCO_JSON_PATTERN.format(assembly="hap1"),
+        hap2=BUSCO_JSON_PATTERN.format(assembly="hap2"),
+        script="scripts/summarize_busco.py"
+
+    output:
+        summary=BUSCO_SUMMARY
+
+    log:
+        output_path(f"logs/busco/{SAMPLE}.busco_summary.log")
+
+    shell:
+        """
+        mkdir -p "$(dirname "{output.summary}")" \
+                 "$(dirname "{log}")"
+
+        python3 "{input.script}" \
+            --result "primary={input.primary}" \
+            --result "hap1={input.hap1}" \
+            --result "hap2={input.hap2}" \
+            --output "{output.summary}" \
+            > "{log}" 2>&1
+        """
+
+
+rule busco_plot:
+    input:
+        summary=BUSCO_SUMMARY,
+        script="scripts/plot_busco.py"
+
+    output:
+        figure=BUSCO_FIGURE
+
+    log:
+        output_path(f"logs/busco/{SAMPLE}.busco_plot.log")
+
+    params:
+        title=f"BUSCO completeness: {SAMPLE} assemblies"
+
+    shell:
+        """
+        mkdir -p "$(dirname "{output.figure}")" \
+                 "$(dirname "{log}")"
+
+        python3 "{input.script}" \
+            --input "{input.summary}" \
+            --output "{output.figure}" \
+            --title "{params.title}" \
+            > "{log}" 2>&1
+        """
 
 rule map_hifi:
     input:
@@ -73,10 +400,10 @@ rule map_hifi:
 
     resources:
         partition=PARTITION,
-        runtime=1440
+        runtime=2880
 
     params:
-        minimap2_threads=10,
+        minimap2_threads=20,
         sort_threads=5,
         temp_prefix=(
             f"{ALIGNMENT_DIR}/tmp/"
@@ -148,4 +475,64 @@ rule mapping_qc:
             --summary "{output.summary}" \
             --flagged "{output.flagged}" \
             --figure "{output.figure}"
+        """
+rule filter_reads:
+    input:
+        reads=READS
+
+    output:
+        reads=FILTERED_READS
+
+    log:
+        output_path("logs/filter_reads.log")
+
+    threads: 4
+
+    resources:
+        partition=PARTITION,
+        runtime=720
+
+    params:
+        min_length=MIN_READ_LENGTH
+
+    shell:
+        """
+        mkdir -p "{WORKDIR}/reads" "{WORKDIR}/logs"
+
+        seqkit seq \
+            -m {params.min_length} \
+            -j {threads} \
+            -o "{output.reads}" \
+            "{input.reads}" \
+            2> "{log}"
+        """
+
+
+rule filtered_read_stats:
+    input:
+        reads=FILTERED_READS
+
+    output:
+        stats=FILTERED_STATS
+
+    log:
+        output_path("logs/filtered_read_stats.log")
+
+    threads: 4
+
+    resources:
+        partition=PARTITION,
+        runtime=720
+
+    shell:
+        """
+        mkdir -p "{READ_QC_DIR}" "{WORKDIR}/logs"
+
+        seqkit stats \
+            -a \
+            -T \
+            -j {threads} \
+            "{input.reads}" \
+            > "{output.stats}" \
+            2> "{log}"
         """

@@ -1,0 +1,8 @@
+metric	value
+number_of_reads	16799154
+total_bases	278194918545
+mean_read_length_bp	16560.06
+read_n50_bp	17311
+mean_read_quality	32.11
+mean_read_gc_percent	40.78
+estimated_coverage_x	85.09

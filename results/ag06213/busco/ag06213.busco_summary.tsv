@@ -1,0 +1,4 @@
+assembly	complete	single_copy	duplicated	fragmented	missing	total_buscos
+primary	95.9	94.3	1.6	0.9	3.2	13780
+hap1	94.7	93.1	1.6	0.9	4.4	13780
+hap2	94.0	92.3	1.7	0.9	5.1	13780

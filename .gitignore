@@ -36,3 +36,4 @@ __pycache__/
 
 # Local machine/server-specific configuration
 config/config.yaml
+config/*.local.yaml

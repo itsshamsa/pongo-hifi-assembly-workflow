@@ -13,11 +13,16 @@ Completed:
 - Assembly statistics calculated with Python
 - Independent validation of summary statistics using SeqKit
 - BUSCO assessment using `primates_odb10`
+- Automated extraction, tabulation and plotting of BUSCO results
 - Comparison of primary, hap1 and hap2 outputs
 - Mapping of the original HiFi reads to the primary assembly
 - Alignment, breadth-of-coverage and depth summaries with SAMtools
 - Python-based identification and visualization of coverage outliers
 - Initial Snakemake implementation with Slurm submission
+- Read-level QC and visualization of PacBio HiFi data
+- Configurable read-length filtering with SeqKit
+- Independent reproduction of the workflow on the larger AG06213 dataset
+- Highly contiguous primary and haplotype-resolved AG06213 assemblies
 
 Planned:
 
@@ -25,6 +30,7 @@ Planned:
 - IG/TR locus-focused evaluation
 - Extension of the workflow to hap1 and hap2 mapping/QC where biologically useful
 - Further workflow portability and reproducibility improvements
+- Mapping AG06213 HiFi reads back to its primary assembly
 
 ## Workflow overview
 
@@ -201,3 +207,47 @@ The repository contains workflow scripts, small summary tables and figures only.
 The current analysis measures contiguity, sequence composition, conserved-gene completeness and support from the input reads. Reference-based comparison and locus-level evaluation remain necessary before making conclusions about structural correctness or haplotype-specific variation.
 
 Complex immunoglobulin and T-cell receptor loci will be evaluated separately because strong genome-wide N50, BUSCO and mapping values do not guarantee correct resolution of highly duplicated and structurally variable immune loci.
+
+
+## Independent workflow reproduction: AG06213
+
+The workflow was independently applied to a second *Pongo abelii* PacBio HiFi dataset, AG06213. This tests whether the analysis can be reproduced on a substantially larger dataset rather than only repeating commands for the original sample.
+
+### Read QC and filtering
+
+The raw dataset contained 16,799,154 reads and 278.2 Gb of sequence, corresponding to approximately 85× genome coverage. Read-length, GC-content and quality distributions were inspected using SeqKit and a streaming Python plotting script.
+
+Reads shorter than 15 kb were removed before assembly. The filtered dataset retained:
+
+- 9,859,661 reads
+- 193.2 Gb of sequence
+- approximately 59× estimated genome coverage
+- read N50 of 19,316 bp
+
+The cutoff was selected after examining the cumulative sequence yield and retained sufficient coverage for diploid assembly.
+
+### Assembly results
+
+The filtered HiFi reads were assembled with hifiasm using 20 threads. The assembly completed in approximately 18 hours and reached a peak memory usage of 198 GB.
+
+| Assembly | Contigs | Total size (bp) | Longest contig (bp) | N50 (bp) | L50 |
+|---|---:|---:|---:|---:|---:|
+| Primary | 257 | 3,298,597,250 | 234,277,436 | 101,933,800 | 12 |
+| Hap1 | 435 | 3,134,494,937 | 189,038,836 | 96,381,537 | 13 |
+| Hap2 | 373 | 3,157,462,547 | 162,793,264 | 88,716,506 | 14 |
+
+### BUSCO completeness
+
+BUSCO 5.5.0 was run in genome mode using `primates_odb10`.
+
+| Assembly | Complete (%) | Single-copy (%) | Duplicated (%) | Fragmented (%) | Missing (%) |
+|---|---:|---:|---:|---:|---:|
+| Primary | 95.9 | 94.3 | 1.6 | 0.9 | 3.2 |
+| Hap1 | 94.7 | 93.1 | 1.6 | 0.9 | 4.4 |
+| Hap2 | 94.0 | 92.3 | 1.7 | 0.9 | 5.1 |
+
+![AG06213 read QC](results/ag06213/read_qc/ag06213.read_qc.png)
+
+![AG06213 BUSCO comparison](results/ag06213/busco/ag06213.busco_comparison.png)
+
+The AG06213 assemblies are considerably more contiguous than the first test assembly while maintaining high conserved-gene completeness. These genome-wide statistics do not independently demonstrate structural correctness, phasing accuracy or correct resolution of complex IG/TR loci; read-supported and locus-level validation remain necessary.

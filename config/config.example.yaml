@@ -1,10 +1,16 @@
 partition: "your_partition"
 
-sample: "pongo_denovo"
+sample: "sample_name"
 
-reads: "data/full.fastq.gz"
+reads: "data/reads.fastq.gz"
+
+workdir: "results/sample_name"
+
+genome_size: 3300000000
+min_read_length: 15000
 
 assemblies:
-  primary: "assembly_fasta/pongo_denovo.primary.fa"
+  primary: "results/sample_name/assembly_fasta/sample_name.primary.fa"
 
-workdir: "."
+busco_lineage: "primates_odb10"
+busco_download_path: "resources/busco_downloads"
